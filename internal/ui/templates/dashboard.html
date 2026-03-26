@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Config.Project}} - wtm</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <h1>{{.Config.Project}}</h1>
+            <span class="domain">{{.Config.Domain}}</span>
+        </div>
+        <div class="worktree-tabs">
+            {{range .AllWorktrees}}
+            {{$status := index $.WorktreeStatus .Name}}
+            <div class="worktree-tab-container" data-worktree="{{.Name}}">
+                <button class="worktree-tab {{if eq $.SelectedWT .Name}}active{{end}}"
+                        onclick="selectWorktree('{{.Name}}')" data-worktree="{{.Name}}">
+                    <span class="wt-status-dot" data-status="{{if $status}}{{$status.Status}}{{else}}stopped{{end}}"></span>
+                    <span class="wt-name">{{.Name}}</span>
+                    <span class="tab-port">:{{.BasePort}}</span>
+                </button>
+                <div class="wt-controls">
+                    <button onclick="event.stopPropagation(); toggleWorktree('{{.Name}}')"
+                            class="wt-btn wt-btn-toggle"
+                            data-worktree="{{.Name}}"
+                            title="Start/Stop">
+                        {{if and $status (eq (printf "%s" $status.Status) "running")}}■{{else}}▶{{end}}
+                    </button>
+                    <button onclick="event.stopPropagation(); openWorktreeTerminal('{{.Name}}')"
+                            class="wt-btn wt-btn-terminal"
+                            title="Open Terminal">💻</button>
+                </div>
+            </div>
+            {{end}}
+            <button class="worktree-tab tab-add" onclick="showCreateWorktree()" title="Create new worktree">
+                +
+            </button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Global Controls -->
+        <div class="controls-bar">
+            <button onclick="startAllServices()" class="btn btn-success">
+                ▶ Start All
+            </button>
+            <button onclick="stopAllServices()" class="btn btn-danger">
+                ■ Stop All
+            </button>
+            <button onclick="restartAllServices()" class="btn">
+                ↻ Restart All
+            </button>
+            <button onclick="syncHosts()" class="btn" title="Sync /etc/hosts">
+                🌐 Sync Hosts
+            </button>
+            <div class="status-summary">
+                <div class="status-badge">
+                    <span class="dot running"></span>
+                    <span id="running-count">0</span> running
+                </div>
+                <div class="status-badge">
+                    <span class="dot stopped"></span>
+                    <span id="stopped-count">0</span> stopped
+                </div>
+            </div>
+        </div>
+
+        <!-- Services -->
+        <section class="card">
+            <h2>Services <span class="selected-wt-badge">{{.SelectedWT}}</span></h2>
+            {{if .Services}}
+            <div class="services-grid">
+                {{range $name, $svc := .Services}}
+                <div class="service-card" data-service="{{$name}}" data-health="unknown">
+                    <div class="service-header">
+                        <span class="status-dot" data-status="unknown"></span>
+                        <h3>{{$name}}</h3>
+                        <span class="service-port"></span>
+                    </div>
+                    <div class="service-details">
+                        <code>{{$svc.Run}}</code>
+                        {{if $svc.WorkingDir}}
+                        <span class="working-dir">📁 {{$svc.WorkingDir}}</span>
+                        {{end}}
+                    </div>
+                    <div class="service-domain" data-service="{{$name}}">
+                        <!-- Updated by JavaScript -->
+                    </div>
+                    <div class="service-actions">
+                        <button onclick="startService('{{$name}}')" class="btn btn-sm btn-success" title="Start">▶</button>
+                        <button onclick="stopService('{{$name}}')" class="btn btn-sm btn-danger" title="Stop">■</button>
+                        <button onclick="restartService('{{$name}}')" class="btn btn-sm" title="Restart">↻</button>
+                        <button onclick="viewLogs('{{$name}}')" class="btn btn-sm" title="View logs">📋</button>
+                        <button onclick="openTerminal('{{$name}}')" class="btn btn-sm" title="Open terminal">💻</button>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            {{else}}
+            <div class="empty-state">
+                <div class="icon">📦</div>
+                <p>No services configured</p>
+            </div>
+            {{end}}
+        </section>
+
+        <!-- Tasks -->
+        {{if .Tasks}}
+        <section class="card">
+            <h2>Tasks</h2>
+            <div class="tasks-list">
+                {{range $name, $task := .Tasks}}
+                <div class="task-item">
+                    <span class="task-name">{{$name}}</span>
+                    {{if $task.Description}}
+                    <span class="task-desc">{{$task.Description}}</span>
+                    {{end}}
+                    <button onclick="runTask('{{$name}}')" class="btn btn-sm btn-primary">Run</button>
+                </div>
+                {{end}}
+            </div>
+        </section>
+        {{end}}
+
+        <!-- Logs -->
+        <section class="card logs-section">
+            <h2>Logs <span class="log-count">0</span></h2>
+            <div class="logs-toolbar">
+                <input type="text" id="log-filter" placeholder="Filter logs..." />
+                <select id="log-service">
+                    <option value="">All services</option>
+                    {{range $name, $svc := .Services}}
+                    <option value="{{$name}}">{{$name}}</option>
+                    {{end}}
+                </select>
+                <button onclick="clearLogs()" class="btn btn-sm">Clear</button>
+            </div>
+            <div class="logs-container" id="logs">
+                <p class="muted">Waiting for logs...</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Create Worktree Modal -->
+    <div id="create-modal" class="modal">
+        <div class="modal-content">
+            <h2>Create Worktree</h2>
+            <form id="create-form" onsubmit="createWorktree(event)">
+                <div class="form-group">
+                    <label for="wt-name">Name</label>
+                    <input type="text" id="wt-name" required placeholder="feature-awesome" />
+                </div>
+                <div class="form-group">
+                    <label for="wt-branch">Branch (optional)</label>
+                    <input type="text" id="wt-branch" placeholder="Leave empty for new branch" />
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="hideModal()" class="btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Pass config to JavaScript
+        window.wtmConfig = {
+            domain: "{{.Config.Domain}}",
+            proxyPort: {{.Config.ProxyPort}},
+            selectedWT: "{{.SelectedWT}}"
+        };
+    </script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

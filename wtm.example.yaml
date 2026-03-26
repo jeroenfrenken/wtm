@@ -1,0 +1,29 @@
+# Worktree Manager Configuration
+# Full reference: docs/configuration.md
+
+project: myapp
+domain: myapp.local
+proxy_port: 8081
+ui_port: 9000
+port_range_start: 3001
+
+# Environment files to load (in order, later files override earlier)
+env_files:
+  - .env
+  - .env.local
+
+# Terminal emulator configuration (optional)
+terminal:
+  emulator: ghostty  # or: iterm, terminal, gnome-terminal, konsole, kitty
+  profile: Dev       # optional profile name
+
+# Project-level hooks - run when worktrees are created/deleted
+hooks:
+  on_create:
+  on_delete:
+
+# Services to run in each worktree
+services:
+
+# One-off tasks
+tasks:

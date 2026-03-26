@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Worktree.Name}} - {{.Config.Project}}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="back-link">← Back</a>
+            <h1>{{.Worktree.Name}}</h1>
+            <span class="domain">{{.Config.Domain}}</span>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Worktree Info -->
+        <section class="card">
+            <h2>Worktree Details</h2>
+            <div class="details-grid">
+                <div class="detail">
+                    <label>Name</label>
+                    <span>{{.Worktree.Name}}</span>
+                </div>
+                <div class="detail">
+                    <label>Branch</label>
+                    <span>{{.Worktree.Branch}}</span>
+                </div>
+                <div class="detail">
+                    <label>Path</label>
+                    <code>{{.Worktree.Path}}</code>
+                </div>
+                <div class="detail">
+                    <label>Base Port</label>
+                    <span>{{.Worktree.BasePort}}</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Services -->
+        <section class="card">
+            <h2>Services</h2>
+            {{if .Services}}
+            <div class="services-grid">
+                {{range $name, $svc := .Services}}
+                {{$port := $.Worktree.BasePort}}
+                <div class="service-card" data-service="{{$name}}">
+                    <div class="service-header">
+                        <span class="status-dot" data-status="unknown"></span>
+                        <h3>{{$name}}</h3>
+                    </div>
+                    <div class="service-details">
+                        <div class="service-domain">
+                            <a href="http://{{$name}}.{{$.Worktree.Name}}.{{$.Config.Domain}}:{{$.Config.ProxyPort}}" target="_blank">
+                                {{$name}}.{{$.Worktree.Name}}.{{$.Config.Domain}}
+                            </a>
+                        </div>
+                        <code>{{$svc.Run}}</code>
+                    </div>
+                    <div class="service-actions">
+                        <button onclick="startService('{{$name}}')" class="btn btn-sm">Start</button>
+                        <button onclick="stopService('{{$name}}')" class="btn btn-sm btn-danger">Stop</button>
+                        <button onclick="restartService('{{$name}}')" class="btn btn-sm">Restart</button>
+                        <button onclick="viewLogs('{{$name}}')" class="btn btn-sm">Logs</button>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            {{else}}
+            <p class="muted">No services configured</p>
+            {{end}}
+        </section>
+
+        <!-- Tasks -->
+        {{if .Tasks}}
+        <section class="card">
+            <h2>Tasks</h2>
+            <div class="tasks-list">
+                {{range $name, $task := .Tasks}}
+                <div class="task-item">
+                    <span class="task-name">{{$name}}</span>
+                    {{if $task.Description}}
+                    <span class="task-desc">{{$task.Description}}</span>
+                    {{end}}
+                    <button onclick="runTask('{{$name}}')" class="btn btn-sm">Run</button>
+                </div>
+                {{end}}
+            </div>
+        </section>
+        {{end}}
+
+        <!-- Logs -->
+        <section class="card logs-section">
+            <h2>Logs <span class="log-count">0</span></h2>
+            <div class="logs-toolbar">
+                <select id="log-service">
+                    <option value="">All services</option>
+                    {{range $name, $svc := .Services}}
+                    <option value="{{$name}}">{{$name}}</option>
+                    {{end}}
+                </select>
+                <input type="text" id="log-filter" placeholder="Filter logs..." />
+                <button onclick="clearLogs()" class="btn btn-sm">Clear</button>
+            </div>
+            <div class="logs-container" id="logs">
+                <p class="muted">Waiting for logs...</p>
+            </div>
+        </section>
+
+        <!-- Danger Zone -->
+        <section class="card danger-zone">
+            <h2>Danger Zone</h2>
+            <p>Permanently delete this worktree and all its data.</p>
+            <button onclick="deleteWorktree('{{.Worktree.Name}}')" class="btn btn-danger">Delete Worktree</button>
+        </section>
+    </main>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
